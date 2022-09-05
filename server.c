@@ -1,49 +1,59 @@
-// Server side implementation of UDP client-server model
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <netdb.h>
 #include <arpa/inet.h>
-#include <netinet/in.h>
-	
-#define SERV_PORT 18080
-#define MAXLINE 1024
-#define SA struct sockaddr
 
-void dg_echo(int sockfd, SA *pcliaddr, socklen_t clilen)
+int main()
 {
-	int n;
-	socklen_t len;
-	char mesg[MAXLINE];
-	for ( ; ; ) {
-		len = clilen;
-		bzero(&mesg,sizeof(mesg));
-		n = recvfrom(sockfd, mesg, sizeof(mesg), 0, pcliaddr, &len);
-		
-		printf("Message from Client - %s",mesg);
-		
-		bzero(&mesg,sizeof(mesg));
-		fgets(mesg,sizeof(mesg),stdin);	
-		sendto(sockfd, mesg, sizeof(mesg), 0, pcliaddr, len);
-	}
-}
-
-int main(int argc, char **argv)
-{
-	int sockfd;
-	struct sockaddr_in servaddr, cliaddr;
-	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+	int servsock , clientsock ;
+	struct sockaddr_in servaddr ;
+	char msg[100];
 	
-	bzero(&servaddr, sizeof(servaddr));
-
-	servaddr.sin_family = AF_INET;
+	// creating a socket
+	servsock = socket(PF_INET,SOCK_STREAM,0);
+	
+	// clearing buffer for server address
+	bzero(&servaddr,sizeof(servaddr));
+	
+	// setting server family , address and port no.
+	servaddr.sin_family = PF_INET;
+	servaddr.sin_port = htons(2008);
 	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	servaddr.sin_port = htons(SERV_PORT);
-
-	bind(sockfd, (SA *) &servaddr, sizeof(servaddr));
-	dg_echo(sockfd, (SA *) &cliaddr, sizeof(cliaddr));
-	close(sockfd);
+	
+	// binding socket with server address
+	bind(servsock,(struct sockaddr *) &servaddr,sizeof(servaddr));
+	
+	listen(servsock,10); // calling listen system call
+	printf("server is in listening mode \t waiting for new connection ... \n\n");
+	
+	// accepting the client connection
+	clientsock = accept(servsock,(struct sockaddr *) NULL , NULL);
+	if(clientsock != -1)
+	{
+		printf("connection established ! \n");
+		while(1)
+		{
+			bzero(&msg,sizeof(msg)) ;
+			recv(clientsock,msg,sizeof(msg),0); // receiving message from client
+			
+			printf(" Message from Client : %s \n",msg);
+			
+			send(clientsock,msg,strlen(msg),0); // sending message to client
+			
+		}
+		
+		// closing the sockets 
+		close(clientsock);
+	}
+	else
+	{
+		printf("Failed to accept connection ! \n");
+	}
+	close(servsock);
+	
+	return 0;
 }
 
